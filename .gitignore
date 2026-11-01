@@ -14,3 +14,5 @@ wheels/
 
 # download_llms.sh due to my own ip info
 download_llms.sh
+# ...except tracked tutorial notebooks
+!notebooks/*.ipynb

@@ -1,0 +1,25 @@
+{
+  "jobs": [
+    {
+      "id": 1001,
+      "title": "Senior Data Scientist",
+      "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/1001",
+      "location": {"name": "Remote - US"},
+      "content": "&lt;div class=&quot;intro&quot;&gt;&lt;p&gt;Build &lt;strong&gt;ML&lt;/strong&gt; models &amp;amp; ship them.&lt;/p&gt;&lt;/div&gt;"
+    },
+    {
+      "id": 1002,
+      "title": "Account Executive",
+      "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/1002",
+      "location": {"name": "New York, NY"},
+      "content": "&lt;p&gt;Sell things.&lt;/p&gt;"
+    },
+    {
+      "id": 1003,
+      "title": "Broken Posting",
+      "absolute_url": null,
+      "location": {"name": "Remote"},
+      "content": ""
+    }
+  ]
+}

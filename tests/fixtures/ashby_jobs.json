@@ -1,0 +1,53 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "a-1",
+      "title": "Machine Learning Engineer",
+      "location": "San Francisco",
+      "secondaryLocations": [{"location": "New York City"}, {"location": "Seattle"}],
+      "isRemote": true,
+      "workplaceType": "Hybrid",
+      "isListed": true,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a-1",
+      "descriptionPlain": "Train and deploy models.",
+      "descriptionHtml": "<p>Train and deploy models.</p>"
+    },
+    {
+      "id": "a-2",
+      "title": "AI Research Scientist",
+      "location": "Anywhere",
+      "secondaryLocations": [],
+      "isRemote": null,
+      "workplaceType": "Remote",
+      "isListed": true,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a-2",
+      "descriptionPlain": "",
+      "descriptionHtml": "<p>Research &amp; publish.</p>"
+    },
+    {
+      "id": "a-3",
+      "title": "Data Scientist (unlisted)",
+      "location": "London",
+      "secondaryLocations": [],
+      "isRemote": null,
+      "workplaceType": null,
+      "isListed": false,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a-3",
+      "descriptionPlain": "Hidden.",
+      "descriptionHtml": "<p>Hidden.</p>"
+    },
+    {
+      "id": "a-4",
+      "title": "Recruiter",
+      "location": "Remote (US)",
+      "secondaryLocations": [],
+      "isRemote": null,
+      "workplaceType": null,
+      "isListed": true,
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a-4",
+      "descriptionPlain": "Hire people.",
+      "descriptionHtml": "<p>Hire people.</p>"
+    }
+  ]
+}
