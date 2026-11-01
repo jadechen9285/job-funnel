@@ -1,7 +1,7 @@
 [project]
-name = "autocandid"
+name = "job-funnel"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automated multi-source job search pipeline with staged filtering, LLM scoring and human-in-the-loop review."
 readme = "README.md"
 authors = [
     { name = "Jianhong Chen", email = "jjianhongchen@gmail.com" }

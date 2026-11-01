@@ -327,41 +327,6 @@ wheels = [
 ]
 
 [[package]]
-name = "autocandid"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "huggingface-hub" },
-    { name = "pydantic" },
-    { name = "socksio" },
-    { name = "vllm" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ipykernel" },
-    { name = "jupyterlab" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "huggingface-hub", extras = ["hf-transfer"], specifier = ">=1.30.0" },
-    { name = "pydantic", specifier = ">=2.13.5" },
-    { name = "socksio", specifier = ">=1.0.0" },
-    { name = "vllm", specifier = ">=0.28.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipykernel", specifier = ">=7.3.0" },
-    { name = "jupyterlab", specifier = ">=4.6.4" },
-    { name = "ruff", specifier = ">=0.16.9" },
-]
-
-[[package]]
 name = "babel"
 version = "2.18.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -1921,6 +1886,41 @@ source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d3/59/322338183ecda247fb5d1763a6cbe46eff7222eaeebafd9fa65d4bf5cb11/jmespath-1.1.0.tar.gz", hash = "sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d", size = 27377, upload-time = "2026-01-22T16:35:26.279Z" }
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl", hash = "sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64", size = 20419, upload-time = "2026-01-22T16:35:24.919Z" },
+]
+
+[[package]]
+name = "job-funnel"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "pydantic" },
+    { name = "socksio" },
+    { name = "vllm" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+    { name = "jupyterlab" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "huggingface-hub", extras = ["hf-transfer"], specifier = ">=1.30.0" },
+    { name = "pydantic", specifier = ">=2.13.5" },
+    { name = "socksio", specifier = ">=1.0.0" },
+    { name = "vllm", specifier = ">=0.28.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipykernel", specifier = ">=7.3.0" },
+    { name = "jupyterlab", specifier = ">=4.6.4" },
+    { name = "ruff", specifier = ">=0.16.9" },
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 import re
 from typing import List, Tuple, Optional
-from autocandid.schemas import JobPosting
+from job_funnel.schemas import JobPosting
 
 class FilterRule:
     """Base interface for all heuristic rules."""

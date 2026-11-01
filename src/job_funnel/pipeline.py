@@ -1,6 +1,6 @@
 import asyncio
-from autocandid.greenhouse_ingestor import GreenhouseIngestor
-from autocandid.heuristic_gate import (
+from job_funnel.greenhouse_ingestor import GreenhouseIngestor
+from job_funnel.heuristic_gate import (
     HeuristicGate, 
     TitleTaxonomyRule, 
     LocationRule,
@@ -9,7 +9,7 @@ from autocandid.heuristic_gate import (
 
 async def main():
     print("="*50)
-    print("AUTOCANDID PIPELINE: STAGE 1 (INGEST & GATE)")
+    print("JOB-FUNNEL PIPELINE: STAGE 1 (INGEST & GATE)")
     print("="*50)
 
     # 1. Initialize dependencies
@@ -54,5 +54,5 @@ async def main():
         print(f" - {sample.title} ({sample.location}) | ID: {sample.external_id}")
 
 if __name__ == "__main__":
-    # Ensure you are running this from the root AutoCandid directory using python -m
+    # Ensure you are running this from the project root directory using python -m
     asyncio.run(main())

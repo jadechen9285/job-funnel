@@ -6,7 +6,7 @@ from typing import List
 from pydantic import ValidationError
 
 # Import the shared schema
-from autocandid.schemas import JobPosting
+from job_funnel.schemas import JobPosting
 
 class GreenhouseIngestor:
     def __init__(self, company_board_token: str):
