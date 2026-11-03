@@ -37,3 +37,52 @@ def test_apply_gate_splits_and_records_reasons():
     assert [(j.external_id, "excluded" in r or "taxonomy" in r) for j, r in pruned] == [
         ("2", True), ("3", True)
     ]
+
+
+async def test_ingest_all_respects_concurrency_limit():
+    import asyncio
+
+    from job_funnel.base_ingestor import BaseIngestor
+
+    state = {"running": 0, "peak": 0}
+
+    class SlowIngestor(BaseIngestor):
+        source = "slow"
+        api_url = "unused"
+
+        def _parse(self, payload):
+            return []
+
+        async def fetch_active_jobs(self):
+            state["running"] += 1
+            state["peak"] = max(state["peak"], state["running"])
+            await asyncio.sleep(0.01)
+            state["running"] -= 1
+            return []
+
+    await ingest_all([SlowIngestor(str(i)) for i in range(8)], max_concurrency=3)
+    assert state["peak"] == 3
+
+
+def test_build_ingestors_from_registry_and_fallback():
+    from job_funnel.boards import Board, BoardRegistry
+    from job_funnel.pipeline import build_ingestors
+
+    registry = BoardRegistry([
+        Board(ats="lever", token="a", status="active"),
+        Board(ats="ashby", token="b", status="dead"),
+    ])
+    assert [(i.source, i.company_token) for i in build_ingestors(registry)] == [("lever_api", "a")]
+    assert {i.company_token for i in build_ingestors(BoardRegistry())} == {"discord", "openai"}
+
+
+def test_record_board_stats():
+    from job_funnel.boards import Board, BoardRegistry
+    from job_funnel.pipeline import record_board_stats
+
+    registry = BoardRegistry([Board(ats="ashby", token="acme", status="active")])
+    jobs = [make_job(source="ashby_api", board_token="acme", external_id=str(i)) for i in range(3)]
+    record_board_stats(registry, jobs, jobs[:1])
+    board = registry.boards[("ashby", "acme")]
+    assert (board.n_jobs, board.n_gated_in) == (3, 1)
+    assert board.last_checked is not None

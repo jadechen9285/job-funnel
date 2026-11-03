@@ -39,3 +39,16 @@ def make_job(**overrides) -> JobPosting:
     }
     fields.update(overrides)
     return JobPosting(**fields)
+
+
+def routed_client(routes: dict[str, tuple[int, object]]) -> httpx.AsyncClient:
+    """An AsyncClient that answers by the first route whose key is a substring of the URL; 404 otherwise."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        for fragment, (status_code, payload) in routes.items():
+            if fragment in url:
+                return httpx.Response(status_code, json=payload)
+        return httpx.Response(404, json={})
+
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))

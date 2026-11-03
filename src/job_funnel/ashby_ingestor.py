@@ -45,7 +45,8 @@ class AshbyIngestor(BaseIngestor):
                     source=self.source,
                     external_id=str(job.get("id")),
                     title=job.get("title", ""),
-                    company=self.company_token.upper(),
+                    company=self.company_name,
+                    board_token=self.company_token,
                     description=job.get("descriptionPlain") or clean_html(job.get("descriptionHtml")),
                     location=self._location(job),
                     url=job.get("jobUrl"),
@@ -53,5 +54,5 @@ class AshbyIngestor(BaseIngestor):
                 )
                 validated_jobs.append(posting)
             except ValidationError:
-                print(f"[-] Dropped job {job.get('id')} due to missing fields.")
+                self._log(f"[-] Dropped job {job.get('id')} due to missing fields.")
         return validated_jobs

@@ -11,6 +11,7 @@ class JobPosting(BaseModel):
     description: str
     location: str
     url: HttpUrl
+    board_token: str | None = None  # ATS board the posting came from, e.g. "discord"
     remote: bool | None = None  # structured remote flag when the source provides one
     discovered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

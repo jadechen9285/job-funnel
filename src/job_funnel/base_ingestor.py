@@ -15,20 +15,32 @@ class BaseIngestor(ABC):
 
     source: str
 
-    def __init__(self, company_board_token: str, client: httpx.AsyncClient | None = None):
+    def __init__(
+        self,
+        company_board_token: str,
+        client: httpx.AsyncClient | None = None,
+        company_name: str | None = None,
+        verbose: bool = True,
+    ):
         self.company_token = company_board_token
+        self.company_name = company_name or company_board_token.upper()
         # Injectable client so tests can use httpx.MockTransport instead of the network.
         self._client = client
+        self.verbose = verbose
 
     @property
     @abstractmethod
     def api_url(self) -> str: ...
 
     @abstractmethod
-    def _parse(self, payload: dict[str, Any]) -> list[JobPosting]: ...
+    def _parse(self, payload: Any) -> list[JobPosting]: ...
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message)
 
     async def fetch_active_jobs(self) -> list[JobPosting]:
-        print(f"[*] Fetching live jobs for '{self.company_token}' from {self.source}...")
+        self._log(f"[*] Fetching live jobs for '{self.company_token}' from {self.source}...")
 
         if self._client is not None:
             response = await self._client.get(self.api_url)
@@ -39,6 +51,6 @@ class BaseIngestor(ABC):
 
         payload = response.json()
         validated_jobs = self._parse(payload)
-        total = len(payload.get("jobs", []))
-        print(f"[+] Successfully validated and ingested {len(validated_jobs)}/{total} jobs.")
+        total = len(payload) if isinstance(payload, list) else len(payload.get("jobs", []))
+        self._log(f"[+] Successfully validated and ingested {len(validated_jobs)}/{total} jobs.")
         return validated_jobs

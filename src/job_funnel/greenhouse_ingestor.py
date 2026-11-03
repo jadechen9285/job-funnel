@@ -22,12 +22,13 @@ class GreenhouseIngestor(BaseIngestor):
                     source=self.source,
                     external_id=str(job.get("id")),
                     title=job.get("title", ""),
-                    company=self.company_token.upper(),
+                    company=self.company_name,
+                    board_token=self.company_token,
                     description=clean_html(job.get("content", "")),
                     location=(job.get("location") or {}).get("name", "Remote / Unspecified"),
                     url=job.get("absolute_url"),
                 )
                 validated_jobs.append(posting)
             except ValidationError:
-                print(f"[-] Dropped job {job.get('id')} due to missing fields.")
+                self._log(f"[-] Dropped job {job.get('id')} due to missing fields.")
         return validated_jobs

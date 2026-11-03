@@ -2,11 +2,12 @@
 
 Automated multi-source job search pipeline: ingest (Greenhouse, Ashby, ...) -> heuristic gate -> LLM scoring -> human review -> resume + cover letter -> apply.
 
-Currently built: ingestion (Greenhouse, Ashby) and the Stage 1 heuristic gate. See the [architecture map](docs/architecture.md) for the full design, including planned stages.
+Currently built: board discovery (HN "Who is hiring"), ingestion (Greenhouse, Ashby, Lever) and the Stage 1 heuristic gate. See the [architecture map](docs/architecture.md) for the full design, including planned stages.
 
 ```bash
 uv sync
-uv run python -m job_funnel.pipeline
+uv run python -m job_funnel.discovery --hn-months 12   # weekly: find boards -> data/boards.csv
+uv run python -m job_funnel.pipeline                   # daily: sweep active boards -> gate
 ```
 
 ## Tests

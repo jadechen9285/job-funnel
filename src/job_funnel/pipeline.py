@@ -1,9 +1,16 @@
 import asyncio
 from collections import Counter
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from job_funnel.ashby_ingestor import AshbyIngestor
 from job_funnel.base_ingestor import BaseIngestor
+from job_funnel.boards import (
+    DEFAULT_REGISTRY_PATH,
+    INGESTORS,
+    BoardRegistry,
+    ingestor_for,
+)
 from job_funnel.greenhouse_ingestor import GreenhouseIngestor
 from job_funnel.heuristic_gate import (
     AntiKeywordRule,
@@ -22,11 +29,17 @@ def default_gate() -> HeuristicGate:
     ])
 
 
-async def ingest_all(ingestors: Sequence[BaseIngestor]) -> list[JobPosting]:
-    """Fetches all sources concurrently; a failing source is logged and skipped."""
-    results = await asyncio.gather(
-        *(ingestor.fetch_active_jobs() for ingestor in ingestors), return_exceptions=True
-    )
+async def ingest_all(
+    ingestors: Sequence[BaseIngestor], max_concurrency: int = 10
+) -> list[JobPosting]:
+    """Fetches all sources concurrently (bounded); a failing source is logged and skipped."""
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _fetch(ingestor: BaseIngestor) -> list[JobPosting]:
+        async with semaphore:
+            return await ingestor.fetch_active_jobs()
+
+    results = await asyncio.gather(*(_fetch(i) for i in ingestors), return_exceptions=True)
     raw_jobs: list[JobPosting] = []
     for ingestor, result in zip(ingestors, results):
         if isinstance(result, Exception):
@@ -50,19 +63,46 @@ def apply_gate(
     return surviving_jobs, pruned
 
 
+def build_ingestors(registry: BoardRegistry) -> list[BaseIngestor]:
+    """One ingestor per active registry board; falls back to two demo boards if the registry is empty."""
+    active = registry.active()
+    if not active:
+        print(f"[!] No active boards in {DEFAULT_REGISTRY_PATH}; run `python -m job_funnel.discovery` first.")
+        print("[!] Falling back to demo boards (greenhouse/discord, ashby/openai).")
+        return [
+            GreenhouseIngestor(company_board_token="discord"),
+            AshbyIngestor(company_board_token="openai"),
+        ]
+    return [ingestor_for(board) for board in active]
+
+
+def record_board_stats(
+    registry: BoardRegistry, raw_jobs: Sequence[JobPosting], surviving_jobs: Sequence[JobPosting]
+) -> None:
+    """Writes per-board yield back to the registry so we can rank/prune boards over time."""
+    ats_by_source = {cls.source: ats for ats, cls in INGESTORS.items()}
+    ingested = Counter((ats_by_source[j.source], j.board_token) for j in raw_jobs)
+    gated_in = Counter((ats_by_source[j.source], j.board_token) for j in surviving_jobs)
+    now = datetime.now(UTC)
+    for key, count in ingested.items():
+        if key in registry.boards:
+            registry.boards[key] = registry.boards[key].model_copy(
+                update={"n_jobs": count, "n_gated_in": gated_in[key], "last_checked": now}
+            )
+
+
 async def main():
     print("="*50)
     print("JOB-FUNNEL PIPELINE: STAGE 1 (INGEST & GATE)")
     print("="*50)
 
     # 1. Initialize dependencies
-    ingestors: list[BaseIngestor] = [
-        GreenhouseIngestor(company_board_token="discord"),
-        AshbyIngestor(company_board_token="openai"),
-    ]
+    registry = BoardRegistry.load(DEFAULT_REGISTRY_PATH)
+    ingestors = build_ingestors(registry)
     gate = default_gate()
 
     # 2. Extract Data
+    print(f"[*] Fetching {len(ingestors)} boards...")
     raw_jobs = await ingest_all(ingestors)
     if not raw_jobs:
         print("[-] No jobs returned from ingestors. Exiting.")
@@ -71,8 +111,9 @@ async def main():
     # 3. Filter Data
     print("\n[*] Applying Heuristic Gate to ingested jobs...")
     surviving_jobs, pruned = apply_gate(gate, raw_jobs)
-    for job, reason in pruned:
-        print(f"  [X] Pruned [{job.source}:{job.external_id}]: {job.title} -> {reason}")
+    if len(registry):
+        record_board_stats(registry, raw_jobs, surviving_jobs)
+        registry.save(DEFAULT_REGISTRY_PATH)
 
     print("\n" + "="*50)
     print("PIPELINE SUMMARY")
@@ -85,10 +126,13 @@ async def main():
     print(f"Total Surviving: {len(surviving_jobs)}")
     print(f"Prune Rate:      {len(pruned) / len(raw_jobs) * 100:.1f}%\n")
 
+    top_boards = Counter(job.company for job in surviving_jobs).most_common(10)
+    print("TOP BOARDS BY SURVIVORS:", ", ".join(f"{c} ({n})" for c, n in top_boards))
+
     if surviving_jobs:
-        print("SURVIVOR SAMPLE (Ready for LLM):")
-        sample = surviving_jobs[0]
-        print(f" - {sample.title} ({sample.location}) | ID: {sample.external_id}")
+        print("\nSURVIVOR SAMPLE (Ready for LLM):")
+        for sample in surviving_jobs[:10]:
+            print(f" - [{sample.company}] {sample.title} ({sample.location})")
 
 if __name__ == "__main__":
     # Ensure you are running this from the project root directory using python -m

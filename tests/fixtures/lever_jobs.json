@@ -1,0 +1,28 @@
+[
+  {
+    "id": "l-1",
+    "text": "Senior Data Scientist",
+    "hostedUrl": "https://jobs.lever.co/acme/l-1",
+    "categories": {"location": "Remote", "allLocations": ["Remote", "Toronto"], "team": "Data"},
+    "workplaceType": "remote",
+    "descriptionPlain": "Join our data team.",
+    "lists": [{"text": "What you'll do", "content": "<li>Build models</li><li>Ship them</li>"}],
+    "additionalPlain": "Pay range: $150k-$200k"
+  },
+  {
+    "id": "l-2",
+    "text": "Office Manager",
+    "hostedUrl": "https://jobs.lever.co/acme/l-2",
+    "categories": {"location": "Berlin"},
+    "workplaceType": "on-site",
+    "descriptionPlain": "",
+    "description": "<p>Run the office.</p>"
+  },
+  {
+    "id": "l-3",
+    "text": "Broken",
+    "hostedUrl": null,
+    "categories": {},
+    "descriptionPlain": "x"
+  }
+]
