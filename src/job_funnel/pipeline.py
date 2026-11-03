@@ -3,6 +3,8 @@ from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
+import httpx
+
 from job_funnel.ashby_ingestor import AshbyIngestor
 from job_funnel.base_ingestor import BaseIngestor
 from job_funnel.boards import (
@@ -20,6 +22,14 @@ from job_funnel.heuristic_gate import (
 )
 from job_funnel.schemas import JobPosting
 
+_TITLE_RULE = TitleTaxonomyRule()
+_ANTI_RULE = AntiKeywordRule()
+
+
+def title_prefilter(title: str) -> bool:
+    """Cheap title-only version of the gate, used by ingestors to skip fetching irrelevant descriptions."""
+    return bool(_TITLE_RULE.pattern.search(title)) and not _ANTI_RULE.anti_pattern.search(title)
+
 
 def default_gate() -> HeuristicGate:
     return HeuristicGate(rules=[
@@ -30,14 +40,21 @@ def default_gate() -> HeuristicGate:
 
 
 async def ingest_all(
-    ingestors: Sequence[BaseIngestor], max_concurrency: int = 10
+    ingestors: Sequence[BaseIngestor], max_concurrency: int = 20, progress_every: int = 250
 ) -> list[JobPosting]:
     """Fetches all sources concurrently (bounded); a failing source is logged and skipped."""
     semaphore = asyncio.Semaphore(max_concurrency)
+    done = 0
 
     async def _fetch(ingestor: BaseIngestor) -> list[JobPosting]:
+        nonlocal done
         async with semaphore:
-            return await ingestor.fetch_active_jobs()
+            try:
+                return await ingestor.fetch_active_jobs()
+            finally:
+                done += 1
+                if progress_every and done % progress_every == 0:
+                    print(f"[*] {done}/{len(ingestors)} boards fetched...")
 
     results = await asyncio.gather(*(_fetch(i) for i in ingestors), return_exceptions=True)
     raw_jobs: list[JobPosting] = []
@@ -63,17 +80,21 @@ def apply_gate(
     return surviving_jobs, pruned
 
 
-def build_ingestors(registry: BoardRegistry) -> list[BaseIngestor]:
+def build_ingestors(
+    registry: BoardRegistry,
+    client: httpx.AsyncClient | None = None,
+    title_filter=title_prefilter,
+) -> list[BaseIngestor]:
     """One ingestor per active registry board; falls back to two demo boards if the registry is empty."""
     active = registry.active()
     if not active:
         print(f"[!] No active boards in {DEFAULT_REGISTRY_PATH}; run `python -m job_funnel.discovery` first.")
         print("[!] Falling back to demo boards (greenhouse/discord, ashby/openai).")
         return [
-            GreenhouseIngestor(company_board_token="discord"),
-            AshbyIngestor(company_board_token="openai"),
+            GreenhouseIngestor(company_board_token="discord", client=client),
+            AshbyIngestor(company_board_token="openai", client=client),
         ]
-    return [ingestor_for(board) for board in active]
+    return [ingestor_for(board, client=client, title_filter=title_filter) for board in active]
 
 
 def record_board_stats(
@@ -98,12 +119,15 @@ async def main():
 
     # 1. Initialize dependencies
     registry = BoardRegistry.load(DEFAULT_REGISTRY_PATH)
-    ingestors = build_ingestors(registry)
     gate = default_gate()
 
-    # 2. Extract Data
-    print(f"[*] Fetching {len(ingestors)} boards...")
-    raw_jobs = await ingest_all(ingestors)
+    # 2. Extract Data (one shared connection pool for all boards)
+    limits = httpx.Limits(max_connections=100, max_keepalive_connections=10)
+    timeout = httpx.Timeout(30.0, pool=120.0)
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, limits=limits) as client:
+        ingestors = build_ingestors(registry, client=client)
+        print(f"[*] Fetching {len(ingestors)} boards...")
+        raw_jobs = await ingest_all(ingestors)
     if not raw_jobs:
         print("[-] No jobs returned from ingestors. Exiting.")
         return

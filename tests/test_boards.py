@@ -14,6 +14,7 @@ from job_funnel.boards import (
 )
 from job_funnel.greenhouse_ingestor import GreenhouseIngestor
 from job_funnel.lever_ingestor import LeverIngestor
+from job_funnel.workday_ingestor import WorkdayIngestor
 
 
 @pytest.mark.parametrize(
@@ -31,6 +32,14 @@ from job_funnel.lever_ingestor import LeverIngestor
         ("https:&#x2F;&#x2F;jobs.ashbyhq.com&#x2F;reducto", {("ashby", "reducto")}),  # HN escaping
         ("apply at jobs.ashbyhq.com/acme.", {("ashby", "acme")}),  # trailing punctuation
         ("https://boards.greenhouse.io/embed/", set()),  # not a board
+        ("https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite/job/US-CA/X_JR1",
+         {("workday", "nvidia|wd5|nvidiaexternalcareersite")}),
+        ("https://capitalone.wd12.myworkdayjobs.com/Capital_One", {("workday", "capitalone|wd12|capital_one")}),
+        ("https://3m.wd1.myworkdayjobs.com/es/3M_Careers", {("workday", "3m|wd1|3m_careers")}),
+        ("https://acme.wd1.myworkdayjobs.com/wday/cxs/acme/site/jobs", set()),  # API path
+        ("https://acme.wd1.myworkdayjobs.com/search", set()),
+        ("https://jobs.ashbyhq.com/51f67855-3ba7-445a-99bb-97e9f5093e4b", set()),  # job UUID, not a board
+        ("https://jobs.ashbyhq.com/a1%20garage%20door", set()),  # encoded spaces
         ("email jobs@acme.com or see acme.com/careers", set()),
         ("", set()),
     ],
@@ -83,22 +92,32 @@ def test_active_and_staleness():
     assert dead.is_stale(timedelta(days=7))  # never checked
 
 
+def test_default_staleness_depends_on_status():
+    ten_days_ago = datetime.now(UTC) - timedelta(days=10)
+    assert Board(ats="ashby", token="a").is_stale()  # unverified: always
+    assert Board(ats="ashby", token="a", status="active", last_checked=ten_days_ago).is_stale()
+    assert not Board(ats="ashby", token="a", status="dormant", last_checked=ten_days_ago).is_stale()
+    assert not Board(ats="ashby", token="a", status="dead", last_checked=ten_days_ago).is_stale()
+
+
 @pytest.mark.parametrize(
-    "ats, cls", [("greenhouse", GreenhouseIngestor), ("ashby", AshbyIngestor), ("lever", LeverIngestor)]
+    "ats, token, cls",
+    [("greenhouse", "acme", GreenhouseIngestor), ("ashby", "acme", AshbyIngestor),
+     ("lever", "acme", LeverIngestor), ("workday", "acme|wd1|site", WorkdayIngestor)],
 )
-def test_ingestor_for(ats, cls):
-    ingestor = ingestor_for(Board(ats=ats, token="acme", company_name="Acme Inc"))
+def test_ingestor_for(ats, token, cls):
+    ingestor = ingestor_for(Board(ats=ats, token=token, company_name="Acme Inc"), title_filter=str.isupper)
     assert isinstance(ingestor, cls)
-    assert ingestor.company_token == "acme"
+    assert ingestor.company_token == token
     assert ingestor.company_name == "Acme Inc"
     assert ingestor.verbose is False
+    assert ingestor.title_filter is str.isupper
 
 
 @pytest.mark.anyio
-async def test_validate_greenhouse_active_uses_board_name():
+async def test_validate_greenhouse_active_uses_listed_company_name():
     client = routed_client({
-        "/v1/boards/acme/jobs": (200, {"jobs": [{"id": 1}, {"id": 2}]}),
-        "/v1/boards/acme": (200, {"name": "Acme Inc"}),
+        "/v1/boards/acme/jobs": (200, {"jobs": [{"id": 1, "company_name": "Acme Inc"}, {"id": 2}]}),
     })
     board = await validate_board(Board(ats="greenhouse", token="acme"), client)
     assert (board.status, board.company_name, board.n_jobs) == ("active", "Acme Inc", 2)
@@ -138,3 +157,32 @@ async def test_validate_boards_batch():
         [Board(ats="lever", token="live"), Board(ats="lever", token="gone")], client, max_concurrency=1
     )
     assert [(b.token, b.status) for b in results] == [("live", "active"), ("gone", "dead")]
+
+
+@pytest.mark.anyio
+async def test_validate_workday_uses_search_total():
+    client = routed_client({"acme.wd5.myworkdayjobs.com/wday/cxs/acme/careers/jobs": (200, {"total": 57})})
+    board = await validate_board(Board(ats="workday", token="acme|wd5|careers"), client)
+    assert (board.status, board.n_jobs, board.company_name) == ("active", 57, "ACME")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("status_code", [404, 410, 422])
+async def test_validate_dead_statuses(status_code):
+    client = routed_client({"myworkdayjobs.com": (status_code, {})})
+    board = await validate_board(Board(ats="workday", token="acme|wd1|nope"), client)
+    assert board.status == "dead"
+
+
+@pytest.mark.anyio
+async def test_empty_board_goes_dormant_after_repeated_checks_and_recovers():
+    empty = routed_client({"lever.co": (200, [])})
+    board = Board(ats="lever", token="quiet")
+    for expected in ["active", "active", "dormant"]:
+        board = await validate_board(board, empty)
+        assert board.status == expected
+    assert board.zero_streak == 3
+
+    hiring = routed_client({"lever.co": (200, [{"id": "x"}])})
+    board = await validate_board(board, hiring)
+    assert (board.status, board.zero_streak, board.n_jobs) == ("active", 0, 1)

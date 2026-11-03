@@ -86,3 +86,29 @@ def test_record_board_stats():
     board = registry.boards[("ashby", "acme")]
     assert (board.n_jobs, board.n_gated_in) == (3, 1)
     assert board.last_checked is not None
+
+
+@pytest.mark.parametrize(
+    "title, expected",
+    [("Senior Data Scientist", True), ("Machine Learning Engineer", True), ("AI Sales Lead", False),
+     ("Office Manager", False)],
+)
+def test_title_prefilter(title, expected):
+    from job_funnel.pipeline import title_prefilter
+
+    assert title_prefilter(title) is expected
+
+
+def test_build_ingestors_shares_client_and_title_filter():
+    import httpx
+
+    from job_funnel.boards import Board, BoardRegistry
+    from job_funnel.pipeline import build_ingestors, title_prefilter
+
+    client = httpx.AsyncClient()
+    registry = BoardRegistry([Board(ats="greenhouse", token="a", status="active"),
+                              Board(ats="workday", token="t|wd1|s", status="active"),
+                              Board(ats="ashby", token="d", status="dormant")])
+    ingestors = build_ingestors(registry, client=client)
+    assert len(ingestors) == 2  # dormant skipped
+    assert all(i._client is client and i.title_filter is title_prefilter for i in ingestors)

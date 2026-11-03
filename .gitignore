@@ -16,3 +16,6 @@ wheels/
 download_llms.sh
 # ...except tracked tutorial notebooks
 !notebooks/*.ipynb
+
+# Common Crawl / download caches
+data/cache/

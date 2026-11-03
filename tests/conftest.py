@@ -14,6 +14,11 @@ def anyio_backend():
     return "asyncio"
 
 
+@pytest.fixture(autouse=True)
+def no_retry_sleep(monkeypatch):
+    monkeypatch.setattr("job_funnel.base_ingestor.DEFAULT_BACKOFF", 0)
+
+
 def load_fixture(name: str) -> dict:
     return json.loads((FIXTURES / name).read_text())
 
@@ -52,3 +57,16 @@ def routed_client(routes: dict[str, tuple[int, object]]) -> httpx.AsyncClient:
         return httpx.Response(404, json={})
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+class RecordingTransport(httpx.MockTransport):
+    """MockTransport that also records every request it served (method, url, json body)."""
+
+    def __init__(self, handler):
+        self.requests: list[httpx.Request] = []
+
+        def _record(request: httpx.Request) -> httpx.Response:
+            self.requests.append(request)
+            return handler(request)
+
+        super().__init__(_record)
